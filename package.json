@@ -51,7 +51,7 @@
     "@contentstack/delivery-sdk": "^5.2.1",
     "@gql2ts/from-schema": "^2.0.0-4",
     "async": "^3.2.6",
-    "axios": "1.18.0",
+    "axios": "1.18.1",
     "lodash": "^4.18.1",
     "prettier": "^3.8.4"
   },
