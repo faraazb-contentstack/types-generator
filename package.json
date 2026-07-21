@@ -48,7 +48,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@contentstack/delivery-sdk": "^5.2.1",
+    "@contentstack/delivery-sdk": "^5.2.2",
     "@gql2ts/from-schema": "^2.0.0-4",
     "async": "^3.2.6",
     "axios": "1.18.0",
