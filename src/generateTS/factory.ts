@@ -32,6 +32,7 @@ export type TSGenOptions = {
   systemFields?: boolean;
   isEditableTags?: boolean;
   includeReferencedEntry?: boolean;
+  typedSdk?: boolean;
   logger?: Logger;
 };
 
@@ -90,6 +91,7 @@ const defaultOptions: TSGenOptions = {
   systemFields: false,
   isEditableTags: false,
   includeReferencedEntry: false,
+  typedSdk: false,
 };
 
 export default function (userOptions: TSGenOptions) {
@@ -228,6 +230,12 @@ export default function (userOptions: TSGenOptions) {
 
   function op_array(type: string, field: ContentstackTypes.Field) {
     let op = "";
+
+    // Ref<Target> is already array-shaped, and its stub/resolved detection in
+    // the SDK relies on that exact shape — never wrap or tuple-ise it.
+    if (options.typedSdk && field.data_type === "reference") {
+      return type;
+    }
 
     if (field.multiple) {
       op = "[]";
@@ -493,8 +501,13 @@ export default function (userOptions: TSGenOptions) {
       counter++;
     }
 
+    // A modular-block container is not an entry: its keys are block uids, and
+    // ModularBlocksExtension<T> maps over keyof T. Extending SystemFields here
+    // leaks uid/ACL/title/... into every block element, so `blocks[0].` offers
+    // entry fields alongside the real block uids. System fields still apply to
+    // the entry interfaces themselves.
     const modularBlockInterfaceDefinition = [
-      `export interface ${modularBlockInterfaceName}${options.systemFields ? ` extends ${trimmedNamingPrefix}SystemFields` : ""} {`,
+      `export interface ${modularBlockInterfaceName} {`,
       modularBlockDefinitions.join("\n"),
       "}",
     ].join("\n");
@@ -578,6 +591,13 @@ export default function (userOptions: TSGenOptions) {
   }
 
   function buildReferenceArrayType(references: string[], options: any): string {
+    // Ref<Target> from the delivery SDK encodes both states of a reference
+    // field: an unresolved stub array, or the referenced entry once its path is
+    // passed to includeReference(). It therefore supersedes includeReferencedEntry.
+    if (options.typedSdk) {
+      return references.length === 0 ? "Ref<any>" : `Ref<${references.join(" | ")}>`;
+    }
+
     // If no valid references remain, return a more specific fallback type
     if (references.length === 0) {
       return "Record<string, unknown>[]";

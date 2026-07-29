@@ -76,4 +76,47 @@ describe("references", () => {
       `);
     });
   });
+
+  describe("with typedSdk enabled", () => {
+    const tsgenTypedSdk = tsgenFactory({
+      docgen: new NullDocumentationGenerator(),
+      naming: { prefix: "I" },
+      typedSdk: true,
+      // typedSdk supersedes this for reference fields
+      includeReferencedEntry: true,
+    });
+
+    test("reference fields become Ref<Target> instead of a stub union", () => {
+      const result = tsgenTypedSdk(testData.references);
+
+      expect(result.definition).toContain(
+        "single_reference: Ref<IReferenceChild>;"
+      );
+      expect(result.definition).toContain(
+        "multiple_reference?: Ref<IReferenceChild | IBoolean | IBuiltinExample>;"
+      );
+      expect(result.definition).not.toContain("IReferencedEntry");
+    });
+
+    test("Ref<> is not array-wrapped again for multiple reference fields", () => {
+      // Ref<T> is already array-shaped, and the SDK's stub-versus-resolved
+      // detection depends on that exact shape, so `multiple` must not add `[]`.
+      const multipleRef = {
+        ...testData.references,
+        uid: "reference_parent_multiple",
+        schema: testData.references.schema.map((field: any) =>
+          field.uid === "single_reference"
+            ? { ...field, multiple: true }
+            : field
+        ),
+      };
+
+      const result = tsgenTypedSdk(multipleRef);
+
+      expect(result.definition).toContain(
+        "single_reference: Ref<IReferenceChild>;"
+      );
+      expect(result.definition).not.toContain("Ref<IReferenceChild>[]");
+    });
+  });
 });

@@ -50,15 +50,21 @@ describe("modular blocks with system fields", () => {
 
   const result = tsgenWithSystemFields(testData.modularBlocks);
 
-  test("modular block interfaces extend SystemFields", () => {
-    expect(result.definition).toContain(
-      "export interface ModularBlocks extends SystemFields {"
-    );
+  // A block container's keys are block uids, and ModularBlocksExtension<T> maps
+  // over keyof T, so inheriting entry fields here would offer uid/ACL/title/...
+  // as block names. The CDA returns only the block key inside a block element,
+  // so those inherited fields do not exist at runtime either.
+  test("modular block interfaces do not extend SystemFields", () => {
+    expect(result.definition).toContain("export interface ModularBlocks {");
   });
 
   test("content type interface extends SystemFields", () => {
+    // The entry interface is emitted with its brace on the following line.
     expect(result.definition).toContain(
-      "export interface ModularBlocks extends SystemFields {"
+      "export interface ModularBlocks extends SystemFields"
+    );
+    expect(result.definition).toMatch(
+      /export interface ModularBlocks extends SystemFields\s*\{/
     );
   });
 
@@ -80,9 +86,13 @@ describe("modular blocks with system fields and prefix", () => {
 
   const result = tsgenWithSystemFieldsAndPrefix(testData.modularBlocks);
 
-  test("modular block interfaces extend prefixed SystemFields", () => {
-    expect(result.definition).toContain(
-      "export interface IModularBlocks extends ISystemFields {"
+  test("modular block interfaces do not extend prefixed SystemFields", () => {
+    expect(result.definition).toContain("export interface IModularBlocks {");
+  });
+
+  test("prefixed content type interface extends prefixed SystemFields", () => {
+    expect(result.definition).toMatch(
+      /export interface IModularBlocks extends ISystemFields\s*\{/
     );
   });
 });

@@ -25,6 +25,7 @@ export const generateTS = async ({
   systemFields,
   isEditableTags,
   includeReferencedEntry,
+  typedSdk,
   host,
   logger: loggerInstance,
 }: GenerateTS) => {
@@ -80,6 +81,7 @@ export const generateTS = async ({
           systemFields,
           isEditableTags,
           includeReferencedEntry,
+          typedSdk,
         });
         return generatedTS;
       }
@@ -129,6 +131,7 @@ export const generateTSFromContentTypes = async ({
   systemFields = false,
   isEditableTags = false,
   includeReferencedEntry = false,
+  typedSdk = false,
   logger: loggerInstance,
 }: GenerateTSFromContentTypes) => {
   const logger = createLogger(loggerInstance);
@@ -145,14 +148,31 @@ export const generateTSFromContentTypes = async ({
       systemFields,
       isEditableTags,
       includeReferencedEntry,
+      typedSdk,
       logger,
     });
+    const registryEntries: string[] = [];
     for (const contentType of contentTypes) {
       const tsgenResult = tsgen(contentType);
       if (tsgenResult.isGlobalField) {
         globalFields.add(tsgenResult.definition);
       } else {
         definitions.push(tsgenResult.definition);
+
+        if (typedSdk) {
+          const interfaceName = tsgenResult.metadata?.name;
+          const uid = contentType.uid;
+          if (interfaceName && !interfaceName.startsWith("InvalidInterface_")) {
+            const key = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(uid)
+              ? uid
+              : JSON.stringify(uid);
+            registryEntries.push(`    ${key}: ${interfaceName};`);
+          } else {
+            logger.warn(
+              `Skipping ContentTypeRegistry entry for "${uid}" - no valid interface name was generated.`
+            );
+          }
+        }
 
         tsgenResult.metadata.types.globalFields.forEach((field: string) => {
           globalFields.add(
@@ -166,8 +186,29 @@ export const generateTSFromContentTypes = async ({
       checkJsonField(contentType.schema)
     );
 
+    // The registry has to be a module augmentation, which requires the emitted
+    // file to be in module context. The `import type { Ref }` below provides
+    // that; without it TypeScript would read `declare module` as an *ambient*
+    // declaration that replaces the SDK's types instead of merging into them,
+    // silently removing the whole SDK surface.
+    const sdkPreamble = typedSdk
+      ? `import type { Ref } from '@contentstack/delivery-sdk';`
+      : "";
+
+    const registryAugmentation =
+      typedSdk && registryEntries.length
+        ? [
+            `declare module '@contentstack/delivery-sdk' {`,
+            `  interface ContentTypeRegistry {`,
+            registryEntries.join("\n"),
+            `  }`,
+            `}`,
+          ].join("\n")
+        : "";
+
     const output = await format(
       [
+        sdkPreamble,
         defaultInterfaces(
           prefix,
           systemFields,
@@ -177,6 +218,7 @@ export const generateTSFromContentTypes = async ({
         ).join("\n\n"),
         [...globalFields].join("\n\n"),
         definitions.join("\n\n"),
+        registryAugmentation,
       ].join("\n\n")
     );
 
