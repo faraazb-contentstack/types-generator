@@ -26,6 +26,7 @@ export const generateTS = async ({
   isEditableTags,
   includeReferencedEntry,
   typedSdk,
+  stackAlias,
   host,
   logger: loggerInstance,
 }: GenerateTS) => {
@@ -82,6 +83,7 @@ export const generateTS = async ({
           isEditableTags,
           includeReferencedEntry,
           typedSdk,
+          stackAlias,
         });
         return generatedTS;
       }
@@ -132,6 +134,7 @@ export const generateTSFromContentTypes = async ({
   isEditableTags = false,
   includeReferencedEntry = false,
   typedSdk = false,
+  stackAlias,
   logger: loggerInstance,
 }: GenerateTSFromContentTypes) => {
   const logger = createLogger(loggerInstance);
@@ -195,13 +198,23 @@ export const generateTSFromContentTypes = async ({
       ? `import type { Ref } from '@contentstack/delivery-sdk';`
       : "";
 
+    // Without an alias the content types land in the flat ContentTypeRegistry,
+    // which is what a single-stack project uses. With one they are nested under
+    // StackRegistry[alias], so each stack (or branch) keeps its own content
+    // types and contentstack.stack<'alias'>() binds the right set.
     const registryAugmentation =
       typedSdk && registryEntries.length
         ? [
             `declare module '@contentstack/delivery-sdk' {`,
-            `  interface ContentTypeRegistry {`,
-            registryEntries.join("\n"),
-            `  }`,
+            ...(stackAlias
+              ? [
+                  `  interface StackRegistry {`,
+                  `    ${JSON.stringify(stackAlias)}: {`,
+                  registryEntries.map((entry) => `  ${entry}`).join("\n"),
+                  `    };`,
+                  `  }`,
+                ]
+              : [`  interface ContentTypeRegistry {`, registryEntries.join("\n"), `  }`]),
             `}`,
           ].join("\n")
         : "";

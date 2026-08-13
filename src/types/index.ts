@@ -34,6 +34,15 @@ export interface GenerateTSBase extends StackConnectionConfig {
    * for reference fields. REST only — graphqlTS does not support it.
    */
   typedSdk?: boolean;
+  /**
+   * Name to register this stack under when a project uses more than one stack
+   * or branch. With typedSdk, the output augments StackRegistry[stackAlias]
+   * instead of the flat ContentTypeRegistry, and the alias is passed at
+   * construction: contentstack.stack<'marketing'>({ ... }). Because a stack's
+   * schema depends on its branch, generate one alias per (apiKey, branch).
+   * Ignored unless typedSdk is enabled.
+   */
+  stackAlias?: string;
   logger?: any;
 }
 
@@ -53,5 +62,14 @@ export interface GenerateTSFromContentTypes {
   includeReferencedEntry?: boolean;
   /** See GenerateTSBase.typedSdk. */
   typedSdk?: boolean;
+  /**
+   * Name to register this stack under when a project uses more than one stack
+   * or branch. With typedSdk, the output augments StackRegistry[stackAlias]
+   * instead of the flat ContentTypeRegistry, and the alias is passed at
+   * construction: contentstack.stack<'marketing'>({ ... }). Because a stack's
+   * schema depends on its branch, generate one alias per (apiKey, branch).
+   * Ignored unless typedSdk is enabled.
+   */
+  stackAlias?: string;
   logger?: any;
 }
